@@ -2,23 +2,28 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const create = async (req, res) => {
-    const { title, slug, content, published, categoriesId, tagIds } = req.body;
+    const { title, slug, content, published, categoriesId, authorId, tagsId } = req.body;
 
     try {
+        // Genera uno slug univoco se non viene fornito
+        const uniqueSlug = slug || `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+
         const post = await prisma.post.create({
             data: {
                 title,
-                slug,
+                slug: uniqueSlug,
                 content,
                 published,
                 categoriesId,
+                authorId,
                 tags: {
-                    connect: tagIds.map(id => ({ id }))
+                    connect: Array.isArray(tagsId) ? tagsId.map(id => ({ id })) : []
                 }
             },
             include: {
                 tags: true,
-                Categories: true
+                Categories: true,
+                author: true
             }
         });
         res.status(200).send(post);
@@ -27,6 +32,8 @@ const create = async (req, res) => {
         res.status(500).json({ err: "Si è verificato un errore durante la creazione del post." });
     }
 };
+
+
 
 const showBySlug = async (req, res) => {
     try {
@@ -74,38 +81,48 @@ const index = async (req, res) => {
     }
 };
 
-const update = async (req, res) => {
-  try {
-      const { slug } = req.params;
-      const { title, content, published, categoriesId, tags } = req.body;
-      
-      // Prepara i dati da aggiornare
-      const updateData = {
-          title,
-          content,
-          published,
-          categoriesId,
-          tags: {
-              set: tags.map(id => ({ id })) // Imposta i nuovi tag
-          }
-      };
+const update = async (req, res, next) => {
+    const { slug } = req.params;
+    const { title, content, published, tags, categoriesId } = req.body;
 
-      // Esegui l'aggiornamento
-      const post = await prisma.post.update({
-          where: { slug },
-          data: updateData,
-          include: {
-              tags: true,
-              Categories: true
-          }
-      });
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
 
-      res.json(post);
-  } catch (err) {
-      console.error("Errore durante l'aggiornamento del post:", err);
-      res.status(500).json({ error: 'Si è verificato un errore durante l\'aggiornamento del post.' });
-  }
+    try {
+        const post = await prisma.post.findUnique({
+            where: { slug: slug }
+        });
+
+        if (!post) {
+            console.log('Post not found with slug:', slug);
+            throw new RestError('Post not found', 404);
+        }
+
+        console.log('Current post data:', post);
+
+        const updatedPost = await prisma.post.update({
+            where: { slug: slug },
+            data: {
+                title,
+                content,
+                published,
+                categoriesId,
+                tags: {
+                    set: tags ? tags.map(tagId => ({ id: tagId })) : [],  // Updating tags
+                }
+            },
+            include: { tags: true, Categories: true }
+        });
+
+        console.log('Updated post data:', updatedPost);
+
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Error updating post:', err);
+        next(err);
+    }
 };
+
 
 const destroy = async (req, res) => {
     const { slug } = req.params;

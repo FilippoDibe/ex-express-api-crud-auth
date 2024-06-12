@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const authMiddleware = require('../middlewares/authMiddleware.js')
 const {
     index,
     showBySlug,
@@ -16,6 +16,6 @@ router.post("/", uniqueSlug, validator(postData), create);
 router.get("/:slug", showBySlug);
 router.get("/", index);
 router.put("/:slug", validator(postData), update);
-router.delete("/:slug", uniqueSlug, destroy);
+router.delete("/:slug",  destroy);
 
 module.exports = router;
