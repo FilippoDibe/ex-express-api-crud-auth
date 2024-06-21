@@ -20,7 +20,7 @@ app.use(express.static("public"));
 app.use(express.json());
 
 
-app.use('/auth', authRouter);
+// app.use('/auth', authRouter);
 app.use('/posts', postRouter);
 app.use('/category', categoryRouter);
 app.use('/tag', tagRouter);

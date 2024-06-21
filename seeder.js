@@ -1,57 +1,82 @@
+// prisma/seed.js
 const { PrismaClient } = require('@prisma/client');
+const { faker } = require('@faker-js/faker');
 const prisma = new PrismaClient();
 
 async function main() {
-  try {
-    // Creazione degli utenti
-    const users = await prisma.user.createMany({
-      data: Array.from({ length: 10 }, (_, i) => ({
-        email: `user${i + 1}@example.com`,
-        name: `User ${i + 1}`,
-        password: 'password' // Assicurati di hashare le password in un caso reale
-      }))
-    });
+  // Cancella i dati esistenti
+  await prisma.post.deleteMany();
+  await prisma.categories.deleteMany();
+  await prisma.tag.deleteMany();
 
-    // Creazione delle categorie
-    const categories = await prisma.categories.createMany({
-      data: [
-        { name: 'Category 1' },
-        { name: 'Category 2' },
-        { name: 'Category 3' }
-      ]
-    });
+  // Categorie di esempio
+  const categories = ['Technology', 'Health', 'Travel', 'Education', 'Food'].map(name => ({
+    name,
+  }));
 
-    // Creazione dei tag
-    const tags = await prisma.tag.createMany({
-      data: Array.from({ length: 5 }, (_, i) => ({
-        name: `Tag ${i + 1}`
-      }))
-    });
+  // Tags di esempio
+  const tags = ['JavaScript', 'React', 'Fitness', 'Nutrition', 'Adventure', 'Culture', 'Programming', 'Lifestyle'].map(name => ({
+    name,
+  }));
 
-    // Creazione dei post
-    const posts = await prisma.post.createMany({
-      data: Array.from({ length: 20 }, (_, i) => {
-        const categoryId = categories[Math.floor(Math.random() * categories.length)].id;
-        const authorId = users[Math.floor(Math.random() * users.length)].id;
-        const tagIds = tags.slice(0, Math.floor(Math.random() * tags.length) + 1).map(tag => tag.id);
-        return {
-          title: `Post ${i + 1}`,
-          slug: `post-${i + 1}`,
-          content: `Content of post ${i + 1}`,
-          published: true,
-          categoriesId: categoryId,
-          authorId: authorId,
-          tags: { connect: tagIds.map(tagId => ({ id: tagId })) }
-        };
-      })
-    });
+  // Crea categorie usando upsert per evitare duplicati
+  const createdCategories = await Promise.all(
+    categories.map(async category => {
+      return await prisma.categories.upsert({
+        where: { name: category.name },
+        update: {},
+        create: category,
+      });
+    })
+  );
 
-    console.log('Seed completed successfully');
-  } catch (error) {
-    console.error(error);
-  } finally {
-    await prisma.$disconnect();
-  }
+  // Crea tags usando upsert per evitare duplicati
+  const createdTags = await Promise.all(
+    tags.map(async tag => {
+      return await prisma.tag.upsert({
+        where: { name: tag.name },
+        update: {},
+        create: tag,
+      });
+    })
+  );
+
+  // Genera post di esempio
+  const posts = Array.from({ length: 10 }).map(() => ({
+    title: faker.lorem.sentence(),
+    slug: faker.lorem.slug(),
+    content: faker.lorem.paragraphs(3, '\n\n'), // Genera paragrafi con un delimitatore
+    published: faker.datatype.boolean(),
+    image: faker.image.url(),
+    categoriesId: faker.helpers.arrayElement(createdCategories).id,
+    tagsId: faker.helpers.arrayElements(createdTags, faker.number.int({ min: 1, max: 3 })).map(tag => tag.id),
+  }));
+
+  // Crea post
+  await Promise.all(
+    posts.map(post => prisma.post.create({
+      data: {
+        title: post.title,
+        slug: post.slug,
+        content: post.content,
+        published: post.published,
+        image: post.image,
+        categoriesId: post.categoriesId,
+        tags: {
+          connect: post.tagsId.map(id => ({ id })),
+        },
+      },
+    }))
+  );
+
+  console.log('Database populated successfully with sample data!');
 }
 
-main();
+main()
+  .catch(e => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

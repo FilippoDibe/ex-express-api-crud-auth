@@ -2,7 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const create = async (req, res) => {
-    const { title, slug, content, published, categoriesId, authorId, tagsId } = req.body;
+    const { title, slug, content, published, categoriesId,  tagsId, image } = req.body;
 
     try {
         // Genera uno slug univoco se non viene fornito
@@ -15,7 +15,7 @@ const create = async (req, res) => {
                 content,
                 published,
                 categoriesId,
-                authorId,
+                image,
                 tags: {
                     connect: Array.isArray(tagsId) ? tagsId.map(id => ({ id })) : []
                 }
@@ -23,7 +23,7 @@ const create = async (req, res) => {
             include: {
                 tags: true,
                 Categories: true,
-                author: true
+                
             }
         });
         res.status(200).send(post);
@@ -83,7 +83,7 @@ const index = async (req, res) => {
 
 const update = async (req, res, next) => {
     const { slug } = req.params;
-    const { title, content, published, tags, categoriesId } = req.body;
+    const { title, content, published, tags, categoriesId, image } = req.body;
 
     console.log('Request params:', req.params);
     console.log('Request body:', req.body);
@@ -107,6 +107,7 @@ const update = async (req, res, next) => {
                 content,
                 published,
                 categoriesId,
+                image,
                 tags: {
                     set: tags ? tags.map(tagId => ({ id: tagId })) : [],  // Updating tags
                 }
