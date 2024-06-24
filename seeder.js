@@ -1,4 +1,3 @@
-// prisma/seed.js
 const { PrismaClient } = require('@prisma/client');
 const { faker } = require('@faker-js/faker');
 const prisma = new PrismaClient();
@@ -8,6 +7,7 @@ async function main() {
   await prisma.post.deleteMany();
   await prisma.categories.deleteMany();
   await prisma.tag.deleteMany();
+  await prisma.user.deleteMany();
 
   // Categorie di esempio
   const categories = ['Technology', 'Health', 'Travel', 'Education', 'Food'].map(name => ({
@@ -41,6 +41,22 @@ async function main() {
     })
   );
 
+  // Crea utenti di esempio
+  const users = await Promise.all(Array.from({ length: 5 }).map(async () => ({
+    email: faker.internet.email(),
+    name: faker.person.fullName(),
+    password: await hashPassword('password123'), // Usa una funzione per hashare la password
+    img_path: faker.image.avatar(),
+  })));
+
+  const createdUsers = await Promise.all(
+    users.map(async user => {
+      return await prisma.user.create({
+        data: user,
+      });
+    })
+  );
+
   // Genera post di esempio
   const posts = Array.from({ length: 10 }).map(() => ({
     title: faker.lorem.sentence(),
@@ -48,8 +64,9 @@ async function main() {
     content: faker.lorem.paragraphs(3, '\n\n'), // Genera paragrafi con un delimitatore
     published: faker.datatype.boolean(),
     image: faker.image.url(),
-    categoriesId: faker.helpers.arrayElement(createdCategories).id,
+    categoryId: faker.helpers.arrayElement(createdCategories).id,
     tagsId: faker.helpers.arrayElements(createdTags, faker.number.int({ min: 1, max: 3 })).map(tag => tag.id),
+    authorId: faker.helpers.arrayElement(createdUsers).id, // Associa un autore casuale a ciascun post
   }));
 
   // Crea post
@@ -61,9 +78,14 @@ async function main() {
         content: post.content,
         published: post.published,
         image: post.image,
-        categoriesId: post.categoriesId,
+        category: {
+          connect: { id: post.categoryId },
+        },
         tags: {
           connect: post.tagsId.map(id => ({ id })),
+        },
+        author: {
+          connect: { id: post.authorId }, // Collegamento all'autore
         },
       },
     }))
@@ -80,3 +102,10 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+// Funzione di hashing della password (puoi usare bcrypt o un altro metodo)
+async function hashPassword(password) {
+  const bcrypt = require('bcrypt');
+  const saltRounds = 10;
+  return await bcrypt.hash(password, saltRounds);
+}

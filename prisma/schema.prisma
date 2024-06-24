@@ -8,19 +8,19 @@ datasource db {
 }
 
 model Post {
-  id           Int         @id @default(autoincrement())
-  title        String
-  slug         String      @unique
-  content      String      @db.Text
-  published    Boolean
-  image        String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  tags         Tag[]       @relation("PostToTag")
-  Categories   Categories? @relation(fields: [categoriesId], references: [id])
-  categoriesId Int?
-  // author       User?       @relation(fields: [authorId], references: [id])
-  // authorId     Int?
+  id         Int         @id @default(autoincrement())
+  title      String
+  slug       String      @unique
+  content    String      @db.Text
+  published  Boolean
+  image      String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  tags       Tag[]       @relation("PostToTag")
+  category   Categories? @relation(fields: [categoryId], references: [id])
+  categoryId Int?
+  author     User?       @relation(fields: [authorId], references: [id])
+  authorId   Int?
 }
 
 model Categories {
@@ -39,13 +39,13 @@ model Tag {
   posts     Post[]   @relation("PostToTag")
 }
 
-// model User {
-//   id        Int      @id @default(autoincrement())
-//   email     String   @unique
-//   name      String
-//   img_path  String?
-//   password  String
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//   posts     Post[]
-// }
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  img_path  String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     Post[]
+}

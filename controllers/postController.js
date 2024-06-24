@@ -1,29 +1,31 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const uniqueSlug = require("../middlewares/uniqueSlug.js");
 
 const create = async (req, res) => {
-    const { title, slug, content, published, categoriesId,  tagsId, image } = req.body;
+    const { title, slug, content, published, categoriesId, tagsId, image, userId } = req.body;
 
     try {
         // Genera uno slug univoco se non viene fornito
-        const uniqueSlug = slug || `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+        const generatedSlug = slug || await uniqueSlug(title);
 
         const post = await prisma.post.create({
             data: {
                 title,
-                slug: uniqueSlug,
+                slug: generatedSlug,
                 content,
                 published,
                 categoriesId,
                 image,
+                authorId: userId, 
                 tags: {
                     connect: Array.isArray(tagsId) ? tagsId.map(id => ({ id })) : []
                 }
             },
             include: {
                 tags: true,
-                Categories: true,
-                
+                category: true, 
+                author: true, 
             }
         });
         res.status(200).send(post);
@@ -33,8 +35,6 @@ const create = async (req, res) => {
     }
 };
 
-
-
 const showBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
@@ -42,7 +42,8 @@ const showBySlug = async (req, res) => {
             where: { slug },
             include: {
                 tags: true,
-                Categories: true
+                category: true, 
+                author: true, 
             }
         });
         if (post) {
@@ -72,7 +73,8 @@ const index = async (req, res) => {
             },
             include: {
                 tags: true,
-                Categories: true
+                category: true, 
+                author: true,
             }
         });
         res.json(posts);
@@ -83,7 +85,7 @@ const index = async (req, res) => {
 
 const update = async (req, res, next) => {
     const { slug } = req.params;
-    const { title, content, published, tags, categoriesId, image } = req.body;
+    const { title, content, published, tags, categoriesId, image, userId } = req.body;
 
     console.log('Request params:', req.params);
     console.log('Request body:', req.body);
@@ -108,11 +110,12 @@ const update = async (req, res, next) => {
                 published,
                 categoriesId,
                 image,
+                authorId: userId, 
                 tags: {
-                    set: tags ? tags.map(tagId => ({ id: tagId })) : [],  // Updating tags
+                    set: tags ? tags.map(tagId => ({ id: tagId })) : [], 
                 }
             },
-            include: { tags: true, Categories: true }
+            include: { tags: true, category: true, author: true }
         });
 
         console.log('Updated post data:', updatedPost);
@@ -123,7 +126,6 @@ const update = async (req, res, next) => {
         next(err);
     }
 };
-
 
 const destroy = async (req, res) => {
     const { slug } = req.params;
